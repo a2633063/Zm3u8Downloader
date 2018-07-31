@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static Zm3u8Downloader.Aria2Download;
+using static Zm3u8Downloader.m3u8Download;
 
 namespace Zm3u8Downloader
 {
@@ -122,14 +123,33 @@ namespace Zm3u8Downloader
 
         private void button1_Click(object sender, EventArgs e)
         {
-            DownloadCallBack cb = new DownloadCallBack(OnDataReceived);
-            Aria2Download mydownload = new Aria2Download("https://download.filezilla.cn/client/windows/FileZilla_3.33.0_win64-setup.exe", "FileZilla_3.33.0_win64-setup.exe", cb);
-            mydownload.Start();
-            Console.WriteLine("ok");
+            if (dataGridView1.SelectedRows.Count > 0)//小于等于0 为没有选中任何行
+            {
+                m3u8DownloadCallBack cb = new m3u8DownloadCallBack(OnDataReceived);
+                int t = dataGridView1.SelectedRows[0].Index;// 获取当前行的 行号               
+                m3u8Download download = new m3u8Download((m3u8File)(dt.Rows[t][5]), t, cb);
+                download.start();
+
+            }
+            else
+            {
+                MessageBox.Show("请选择一行！");
+            }
+
+
+            //DownloadCallBack cb = new DownloadCallBack(OnDataReceived);
+            //Aria2Download mydownload = new Aria2Download("https://download.filezilla.cn/client/windows/FileZilla_3.33.0_win64-setup.exe", "FileZilla_3.33.0_win64-setup.exe", cb);
+            //mydownload.Start();
+            //Console.WriteLine("ok");
+        }
+        public void OnDataReceived(Status status, int id,string str)
+        {
+            dt.Rows[id][4] = str;
         }
         public void OnDataReceived(Status status, int progress)
         {
             SetText(textBox1, "当前进度: " + progress + "%");
+            dt.Rows[0][4] = "当前进度: " + progress + "%";
             //textBox1.Text = "当前进度: " + progress + "%";
             Console.WriteLine("当前进度: " + progress + "%");
         }

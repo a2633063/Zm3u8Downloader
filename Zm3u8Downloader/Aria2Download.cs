@@ -10,6 +10,7 @@ namespace Zm3u8Downloader
 {
     public class Aria2Download
     {
+       
         public delegate void DownloadCallBack(Status status, int progress);
 
         public Status status;
@@ -39,7 +40,8 @@ namespace Zm3u8Downloader
             //新建线程
             Process process = new Process();
             process.StartInfo.FileName = @".\aria2c\aria2c.exe";
-            process.StartInfo.Arguments = " --all-proxy=w0102934:beenle1702@10.191.131.15:3128  -o \"" + filename+"\" -c -x 2 " + uri;
+            process.StartInfo.Arguments = " -o \"" + filename + "\" -c -x 2 " + uri;
+//            process.StartInfo.Arguments = " --all-proxy=w0102934:beenle1702@10.191.131.15:3128  -o \"" + filename + "\" -c -x 2 " + uri;
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.ErrorDialog = false;
             process.StartInfo.UseShellExecute = false;
@@ -63,14 +65,14 @@ namespace Zm3u8Downloader
 
         private void process_Exited(object sender, System.EventArgs e)
         {
-
+            Console.WriteLine("process_Exited");
         }
 
         private void process_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
             if (e.Data == null) return;
             //debug
-            Console.WriteLine(e.Data);
+           // Console.WriteLine(e.Data);
             //end debug
             if (e.Data.Contains("completed"))
             {
@@ -82,16 +84,14 @@ namespace Zm3u8Downloader
                 status = Status.Failed;
                 callBack.Invoke(status, 100);
             }
-
-            string legalRegexPattern = @"[#S S S S S*]";
-            Regex legalRegex = new Regex(legalRegexPattern);
+            
+            Regex legalRegex = new Regex(@"[#S S S S S*]");
             if (!legalRegex.IsMatch(e.Data)) return;
-            string ratePattern = @"\d*%";
-            Regex rateRegex = new Regex(ratePattern);
 
+            Regex rateRegex = new Regex(@"\d*%");
             string rate = rateRegex.Match(e.Data).Value;
             if(!String.IsNullOrWhiteSpace(rate))
-                callBack.Invoke(status, int.Parse(rate.Remove(rate.Length - 1)));
+                callBack(status, int.Parse(rate.Remove(rate.Length - 1)));
             
 
         }
