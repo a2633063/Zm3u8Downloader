@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Aria2Download.cs" />
+    <Compile Include="ffmpegMerge.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
