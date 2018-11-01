@@ -62,14 +62,12 @@ namespace Zm3u8Downloader
             mainThreadSynContext = SynchronizationContext.Current;
             InitializeComponent();
             Control.CheckForIllegalCrossThreadCalls = false;  //禁止编译器对跨线程访问做检查
-            m3u8FileList.Add(new m3u8File(@"G:\英语\新东方\_缓存\新建文件夹\批量下载软件\[Lesson 44 Speed and comfort]1  Lesson 44 单词讲解.m3u8"));
-            m3u8FileList.Add(new m3u8File(@"G:\英语\新东方\_缓存\新建文件夹\批量下载软件\[Lesson 44 Speed and comfort]5  Lesson 44 课文讲解4.m3u8"));
             dataGridView1.Columns[0].DataPropertyName = "name";
             dataGridView1.Columns[1].DataPropertyName = "path";
             dataGridView1.Columns[2].DataPropertyName = "totalTime";
             dataGridView1.Columns[3].DataPropertyName = "partCount";
             // dataGridView1.DataSource = new BindingList<m3u8File>(m3u8FileList);
-            dataGridView1.DataSource = m3u8FileList;
+            //dataGridView1.DataSource = m3u8FileList;
 
 
             //dataGridView1.Columns[0].DataPropertyName = "name";
@@ -136,7 +134,7 @@ namespace Zm3u8Downloader
         {
             if (dataGridView1.SelectedRows.Count > 0)//小于等于0 为没有选中任何行
             {
-                int row = dataGridView1.CurrentRow.Index;
+                int row = dataGridView1.SelectedRows[0].Index;
 
                 dataGridView2.Rows.Clear();
                 for (int i = 0; i < m3u8FileList[row].DownloadUrl.Count; i++)
@@ -226,7 +224,9 @@ namespace Zm3u8Downloader
             if (partId == 0)
             {
                 log.AppendText("开始下载文件" + fileId + ":");
+                
             }
+            //dataGridView1.Rows[fileId].Cells[4].Value = string.Format("{0:D3}/{1:D3}", partId, m3u8FileList[fileId].DownloadUrl.Count); 
             log.AppendText("    分片" + partId + "\n");
 
             Console.WriteLine("开始下载文件" + m3u8FileList[fileId].name + "*************************************************");
@@ -234,7 +234,7 @@ namespace Zm3u8Downloader
             String partName = url.Substring(url.LastIndexOf('/') + 1);
 
             DownloadAllDataReceived = new Aria2DownloadCallBack(OnDownloadAllDataReceived);
-            Aria2Download download = new Aria2Download(url, ".\\" + m3u8FileList[fileId].name + "\\" + partName, DownloadAllDataReceived, new FileId(fileId, partId));
+            Aria2Download download = new Aria2Download(url, m3u8FileList[fileId].name, DownloadAllDataReceived, new FileId(fileId, partId));
             download.Start();
             m3u8FileList[fileId].DownloadState[partId] = 0;
             updateDownloadState(fileId, partId);
@@ -243,6 +243,16 @@ namespace Zm3u8Downloader
             if (partId >= m3u8FileList[fileId].DownloadUrl.Count)
             {
                 partId = 0;
+                String res = "完成";
+                for (int i=0;i<m3u8FileList[fileId].DownloadState.Count;i++)
+                {
+                   if( m3u8FileList[fileId].DownloadState[i] == (int)Status.Failed)
+                    {
+                        res = "失败!";
+                        break;
+                    }
+                }
+                //dataGridView1.Rows[fileId].Cells[4].Value = res;
                 fileId++;
             }
         }
@@ -250,7 +260,7 @@ namespace Zm3u8Downloader
 
         void updateDownloadState(int row, int i)
         {
-            if (dataGridView1.CurrentRow.Index != row) return;
+            if (dataGridView1.CurrentRow==null || dataGridView1.SelectedRows[0].Index != row) return;
 
 
             String url = m3u8FileList[row].DownloadUrl[i];
@@ -309,7 +319,7 @@ namespace Zm3u8Downloader
                 case Status.Finished: Downloading--; break;
                 case Status.Exit: Console.WriteLine("process_Exited."+a+","+b); DownloadNextFile();break;
             }
-            int row = dataGridView1.CurrentRow.Index;
+            int row = dataGridView1.SelectedRows[0].Index;
             if (a == row)
             {
                 updateDownloadState(row, b);
@@ -321,6 +331,7 @@ namespace Zm3u8Downloader
             m3u8FileList.Clear();
             dataGridView1.DataSource = new List<m3u8File>();
             dataGridView1.DataSource = m3u8FileList;
+            dataGridView2.Rows.Clear();
             //dataGridView1.Rows.Clear();
         }
     }

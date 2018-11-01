@@ -45,7 +45,7 @@ namespace Zm3u8Downloader
             //新建线程
             Process process = new Process();
             process.StartInfo.FileName = @".\aria2c\aria2c.exe";
-            process.StartInfo.Arguments = " -c -x 2 " + uri;
+            process.StartInfo.Arguments = " -c -x 2 -d \"./Download/"+ filename+"\" " + uri;
  //           process.StartInfo.Arguments = " --all-proxy=w0102934:beenle1702@10.191.131.15:3128  -o \"" + filename + "\" -c -x 2 " + uri;
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.ErrorDialog = false;
