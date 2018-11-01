@@ -66,6 +66,7 @@ namespace Zm3u8Downloader
             dataGridView1.Columns[1].DataPropertyName = "path";
             dataGridView1.Columns[2].DataPropertyName = "totalTime";
             dataGridView1.Columns[3].DataPropertyName = "partCount";
+            dataGridView1.Columns[4].DataPropertyName = "state";
             // dataGridView1.DataSource = new BindingList<m3u8File>(m3u8FileList);
             //dataGridView1.DataSource = m3u8FileList;
 
@@ -227,6 +228,9 @@ namespace Zm3u8Downloader
                 
             }
             //dataGridView1.Rows[fileId].Cells[4].Value = string.Format("{0:D3}/{1:D3}", partId, m3u8FileList[fileId].DownloadUrl.Count); 
+            m3u8FileList[fileId].stateId = partId;
+            dataGridView1.DataSource = new List<m3u8File>();
+            dataGridView1.DataSource = m3u8FileList;
             log.AppendText("    分片" + partId + "\n");
 
             Console.WriteLine("开始下载文件" + m3u8FileList[fileId].name + "*************************************************");
@@ -243,17 +247,28 @@ namespace Zm3u8Downloader
             if (partId >= m3u8FileList[fileId].DownloadUrl.Count)
             {
                 partId = 0;
-                String res = "完成";
+                Status res = Status.Finished;
                 for (int i=0;i<m3u8FileList[fileId].DownloadState.Count;i++)
                 {
                    if( m3u8FileList[fileId].DownloadState[i] == (int)Status.Failed)
                     {
-                        res = "失败!";
+                        res = Status.Failed;
                         break;
                     }
                 }
-                //dataGridView1.Rows[fileId].Cells[4].Value = res;
+                try
+                {
+                    m3u8FileList[fileId].stateId = (int)res;
+                    m3u8FileList[fileId].stateId = 0;
+                }
+                catch (Exception)
+                {
+
+                    //throw;
+                }
                 fileId++;
+                dataGridView1.DataSource = new List<m3u8File>();
+                dataGridView1.DataSource = m3u8FileList;
             }
         }
         #endregion
@@ -319,10 +334,19 @@ namespace Zm3u8Downloader
                 case Status.Finished: Downloading--; break;
                 case Status.Exit: Console.WriteLine("process_Exited."+a+","+b); DownloadNextFile();break;
             }
-            int row = dataGridView1.SelectedRows[0].Index;
-            if (a == row)
+
+            try
             {
-                updateDownloadState(row, b);
+                int row = dataGridView1.SelectedRows[0].Index;
+                if (a == row)
+                {
+                    updateDownloadState(row, b);
+                }
+            }
+            catch (Exception)
+            {
+
+               // throw;
             }
         }
 

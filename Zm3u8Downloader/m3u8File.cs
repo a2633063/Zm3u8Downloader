@@ -15,7 +15,8 @@ namespace Zm3u8Downloader
         string _name;
         string _path;
         long _totalTime = -1;
-        public string keyPath=null;
+        public int stateId = (int)Status.NoStart;
+        public string keyPath = null;
         public List<String> DownloadUrl = new List<string>();
         public List<int> DownloadState = new List<int>();
 
@@ -41,13 +42,33 @@ namespace Zm3u8Downloader
         public int partCount
         {
             get { return DownloadUrl.Count; }
-            
-        }
 
+        }
+        public String state
+        {
+            get
+            {
+
+                switch ((Status)stateId)
+                {
+                    case Status.NoStart: return "排队";
+                    case Status.Paused: return "暂停";
+                    
+                    case Status.Failed: return "失败";
+                    case Status.Exit: case Status.Finished: return "下载完成";
+                    case Status.Running:
+                        //return "正在下载";
+                    default:
+                    
+                        return stateId + "/" + DownloadUrl.Count;
+                }
+            }
+
+        }
         public m3u8File(String str)
         {
             file = new FileInfo(str);
-            name = file.Name.Replace(file.Extension,"") ;
+            name = file.Name.Replace(file.Extension, "");
             path = file.DirectoryName;
             getFileInfo();
         }
@@ -89,13 +110,14 @@ namespace Zm3u8Downloader
                 {
 
                     if (_totalTime < 0) _totalTime = 0;
-                    _totalTime+= Convert.ToInt32(m1.Result("$1"));
+                    _totalTime += Convert.ToInt32(m1.Result("$1"));
                     urlFlag = true;
-                }else if (urlFlag)
+                }
+                else if (urlFlag)
                 {
                     urlFlag = false;
                     DownloadUrl.Add(nextLine);
-                    
+
                     //Console.WriteLine(DownloadUrl.Count+","+nextLine);
                 }
                 DownloadStateClear();
@@ -106,7 +128,7 @@ namespace Zm3u8Downloader
         public void DownloadStateClear()
         {
             DownloadState.Clear();
-            for(int i=0;i<DownloadUrl.Count;i++)
+            for (int i = 0; i < DownloadUrl.Count; i++)
             {
                 DownloadState.Add((int)Status.NoStart);
             }
