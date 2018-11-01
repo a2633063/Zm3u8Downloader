@@ -6,45 +6,75 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static Zm3u8Downloader.Aria2Download;
 using static Zm3u8Downloader.ffmpegMerge;
-using static Zm3u8Downloader.m3u8Download;
 
 namespace Zm3u8Downloader
 {
     public partial class Form1 : Form
     {
         const int MAX_DOWNLOAD_COUNT = 3;
-        DataTable dt = new DataTable();
-        List<Aria2Download.Status> finishList = new List<Aria2Download.Status>();
-        List<int> falseList = new List<int>();
-        List<int> successList = new List<int>();
+
+        List<m3u8File> m3u8FileList = new List<m3u8File>();
+
+        int failCount = 0;
+        int Downloading = 0;
+
+        class FileId
+        {
+            public int fileId = -1;
+            public int partId = -1;
+
+            public FileId(int a, int b)
+            {
+                fileId = a;
+                partId = b;
+            }
+        };
+
+
+        int fileId = 0;
+        int partId = 0;
 
         void DownloadParamterInit()
         {
-            finishList.Clear();
-            falseList.Clear();
-            successList.Clear();
 
+            foreach (m3u8File m in m3u8FileList)
+            {
+                m.DownloadStateClear();
+            }
+            failCount = 0;
+            fileId = 0;
+            partId = 0;
+            log.Text = "";
         }
+
+
+
+        static int mainThreadId;
         public Form1()
         {
+
+            mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            mainThreadSynContext = SynchronizationContext.Current;
             InitializeComponent();
-            dt.Columns.Add("文件", typeof(String));
-            dt.Columns.Add("本地路径", typeof(String));
-            dt.Columns.Add("分片数量", typeof(String));
-            dt.Columns.Add("时长", typeof(String));
-            dt.Columns.Add("状态", typeof(String));
-            dt.Columns.Add("m3u8File", typeof(m3u8File));
-            dataGridView1.DataSource = dt;
-            dataGridView1.Columns[dataGridView1.Columns.Count - 1].Visible = false;
-            dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
-            dataGridView1.Columns[2].Width = 80;
-            dataGridView1.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            dataGridView1.Columns[3].Width = 80;
-            dataGridView1.Columns[3].SortMode = DataGridViewColumnSortMode.NotSortable;
+            Control.CheckForIllegalCrossThreadCalls = false;  //禁止编译器对跨线程访问做检查
+            m3u8FileList.Add(new m3u8File(@"G:\英语\新东方\_缓存\新建文件夹\批量下载软件\[Lesson 44 Speed and comfort]1  Lesson 44 单词讲解.m3u8"));
+            m3u8FileList.Add(new m3u8File(@"G:\英语\新东方\_缓存\新建文件夹\批量下载软件\[Lesson 44 Speed and comfort]5  Lesson 44 课文讲解4.m3u8"));
+            dataGridView1.Columns[0].DataPropertyName = "name";
+            dataGridView1.Columns[1].DataPropertyName = "path";
+            dataGridView1.Columns[2].DataPropertyName = "totalTime";
+            dataGridView1.Columns[3].DataPropertyName = "partCount";
+            // dataGridView1.DataSource = new BindingList<m3u8File>(m3u8FileList);
+            dataGridView1.DataSource = m3u8FileList;
+
+
+            //dataGridView1.Columns[0].DataPropertyName = "name";
+            //dataGridView1.DataSource = m3u8FileList;
+
 
 
 
@@ -93,10 +123,35 @@ namespace Zm3u8Downloader
                     }
                 }
             }
+            dataGridView1.DataSource = new List<m3u8File>();
+            dataGridView1.DataSource = m3u8FileList;
 
         }
 
 
+        #endregion
+
+        #region dataGridView1 选中一行有效数据时显示当前下载分片
+        private void dataGridView1_SelectionChanged(object sender, EventArgs e)
+        {
+            if (dataGridView1.SelectedRows.Count > 0)//小于等于0 为没有选中任何行
+            {
+                int row = dataGridView1.CurrentRow.Index;
+
+                dataGridView2.Rows.Clear();
+                for (int i = 0; i < m3u8FileList[row].DownloadUrl.Count; i++)
+                {
+                    int index = dataGridView2.Rows.Add();
+                }
+                List<String> DownloadTsFile = new List<string>();
+                for (int i = 0; i < m3u8FileList[row].DownloadUrl.Count; i++)
+                {
+                    updateDownloadState(row, i);
+                }
+
+            }
+
+        }
         #endregion
         #endregion
 
@@ -135,123 +190,138 @@ namespace Zm3u8Downloader
 
         #endregion
 
+
+        #region 功能子函数
+
+        #region 增加一个m3u8文件
         void addM3u8File(String filepath)
         {
-            m3u8File m3u8file = new m3u8File(filepath);
-            //int index = dataGridView1.Rows.Add();
-            //dataGridView1.Rows[index].Cells[0].Value = m3u8file.name;
-            //dataGridView1.Rows[index].Cells[1].Value = m3u8file.path;
-            //dataGridView1.Rows[index].Cells[2].Value = m3u8file.PartNo;
-            //TimeSpan ts = new TimeSpan(0, 0, (int)m3u8file.totalTime);
-            //dataGridView1.Rows[index].Cells[3].Value = string.Format("{0:d2}:{1:d2}:{2:d2}", ts.Hours, ts.Minutes, ts.Seconds);
-            TimeSpan ts = new TimeSpan(0, 0, (int)m3u8file.totalTime);
-            dt.Rows.Add(m3u8file.name, m3u8file.path, m3u8file.PartNo, string.Format("{0:d2}:{1:d2}:{2:d2}", ts.Hours, ts.Minutes, ts.Seconds), "", m3u8file);
+            m3u8FileList.Add(new m3u8File(filepath));
 
         }
+        #endregion
 
-        private void btnSelectDownload_Click(object sender, EventArgs e)
+        #region 开始下载下一个ts文件
+        private SynchronizationContext mainThreadSynContext;
+        void DownloadNextFile()
         {
-            if (dataGridView1.SelectedRows.Count > 0)//小于等于0 为没有选中任何行
+            mainThreadSynContext.Post(new SendOrPostCallback(DownloadNextFile1), null);
+        }
+        void DownloadNextFile1(object state)
+        {
+            if (System.Threading.Thread.CurrentThread.ManagedThreadId == mainThreadId)
             {
-                m3u8DownloadCallBack cb = new m3u8DownloadCallBack(OnSelectDownloadDataReceived);
-                int t = dataGridView1.SelectedRows[0].Index;// 获取当前行的 行号               
-                m3u8Download download = new m3u8Download((m3u8File)(dt.Rows[t][5]), t, chkMerge.Checked, cb);
-                download.start();
+                Console.WriteLine("主线程" + partId);
             }
             else
             {
-                MessageBox.Show("请选择一行！");
+                Console.WriteLine("子线程" + partId);
             }
-
-        }
-        public void OnSelectDownloadDataReceived(Aria2Download.Status status, int id, string str)
-        {
-            dt.Rows[id][4] = str;
-        }
-
-
-        private void btnPartUrlCheck_Click(object sender, EventArgs e)
-        {
-
-
-            if (dataGridView1.SelectedRows.Count > 0)//小于等于0 为没有选中任何行
+            if (fileId >= m3u8FileList.Count)
             {
-                string a = dataGridView1.SelectedRows[0].Cells[0].Value.ToString();// 获取当前行 某个单元格数据
-
-                string b = dataGridView1.SelectedRows[0].Cells[1].Value.ToString();// 获取当前行 某个单元格数据
-
-                int t = dataGridView1.SelectedRows[0].Index;// 获取当前行的 行号
-                object v1 = dt.Rows[t][5];
-                PartUrl f = new PartUrl((m3u8File)(dt.Rows[t][5]));
-                f.ShowDialog();
+                return;
             }
-            else
+
+
+            if (partId == 0)
             {
-                MessageBox.Show("请选择一行！");
+                log.AppendText("开始下载文件" + fileId + ":");
+            }
+            log.AppendText("    分片" + partId + "\n");
+
+            Console.WriteLine("开始下载文件" + m3u8FileList[fileId].name + "*************************************************");
+            String url = m3u8FileList[fileId].DownloadUrl[partId];
+            String partName = url.Substring(url.LastIndexOf('/') + 1);
+
+            DownloadAllDataReceived = new Aria2DownloadCallBack(OnDownloadAllDataReceived);
+            Aria2Download download = new Aria2Download(url, ".\\" + m3u8FileList[fileId].name + "\\" + partName, DownloadAllDataReceived, new FileId(fileId, partId));
+            download.Start();
+            m3u8FileList[fileId].DownloadState[partId] = 0;
+            updateDownloadState(fileId, partId);
+            Downloading++;
+            partId++;
+            if (partId >= m3u8FileList[fileId].DownloadUrl.Count)
+            {
+                partId = 0;
+                fileId++;
             }
         }
+        #endregion
 
-        m3u8DownloadCallBack DownloadAllDataReceived;
+        void updateDownloadState(int row, int i)
+        {
+            if (dataGridView1.CurrentRow.Index != row) return;
+
+
+            String url = m3u8FileList[row].DownloadUrl[i];
+            String stateStr = "";
+
+            dataGridView2.Rows[i].Cells[0].Value = url.Substring(url.LastIndexOf('/') + 1);
+            switch ((Status)m3u8FileList[row].DownloadState[i])
+            {
+                case Status.NoStart: stateStr = ""; break;
+                case Status.Paused: stateStr = "暂停"; break;
+                case Status.Running: stateStr = "正在下载"; break;
+                case Status.Failed: stateStr = "失败"; break;
+                case Status.Exit: case Status.Finished: stateStr = "下载完成"; break;
+
+                default:
+                    stateStr = m3u8FileList[row].DownloadState[i] + "%";
+                    break;
+            }
+            dataGridView2.Rows[i].Cells[1].Value = stateStr;
+        }
+        #endregion
+
+
+
+
+        Aria2DownloadCallBack DownloadAllDataReceived;
         private void btnDownloadAll_Click(object sender, EventArgs e)
         {
             DownloadParamterInit();
-            DownloadAllDataReceived = new m3u8DownloadCallBack(OnDownloadAllDataReceived); ;
-            if (dataGridView1.Rows.Count > 0)//小于等于0 为没有任何行
-            {
-                for (int i = 0; i < dataGridView1.Rows.Count; i++)
-                    finishList.Add(Aria2Download.Status.NoStart);
-                int t = 0;
-                for (int i = 0; i < MAX_DOWNLOAD_COUNT && i < dataGridView1.Rows.Count; i++)
-                {
-                    m3u8Download download = new m3u8Download((m3u8File)(dt.Rows[t][5]), t, chkMerge.Checked, DownloadAllDataReceived);
-                    finishList[t] = Aria2Download.Status.Running;
-                    download.start();
-                    t++;
-                }
-
-            }
-            else
+            if (dataGridView1.Rows.Count < 1) //小于等于0 为没有任何行
             {
                 MessageBox.Show("内容为空!");
+                return;
             }
+
+            //从第0行开始下载
+
+            for (int i = 0; i < MAX_DOWNLOAD_COUNT; i++)
+            {
+                DownloadNextFile();
+            }
+
+
         }
-        public void OnDownloadAllDataReceived(Aria2Download.Status status, int id, string str)
+        public void OnDownloadAllDataReceived(Status status, int progress, Object param)
         {
-            dt.Rows[id][4] = str;
-            if (status == Aria2Download.Status.Failed || status == Aria2Download.Status.Finished)
-            {//处理完成一个(包括下载成功或失败),处理下一个
-                finishList[id] = status;
-
-                for (id = id + 1; id < dt.Rows.Count; id++)
-                {
-                    if (finishList[id] == Aria2Download.Status.NoStart)
-                    {//未下载
-                        m3u8Download download = new m3u8Download((m3u8File)(dt.Rows[id][5]), id, chkMerge.Checked, DownloadAllDataReceived);
-                        download.start();
-                        finishList[id] = Aria2Download.Status.Running;
-                        break;
-                    }
-
-                }
-
-                if (id >= dt.Rows.Count)
-                {
-                    for (int i = 0; i < finishList.Count; i++)
-                    {
-                        if (finishList[i] == Aria2Download.Status.Running)
-                        {
-                            falseList.Clear();
-                            successList.Clear();
-                            return;//等待其他下载完毕
-                        }
-                        else if (finishList[i] == Aria2Download.Status.Failed) falseList.Add(i);
-                        else if (finishList[i] == Aria2Download.Status.Finished) successList.Add(i);
-                    }
-                    MessageBox.Show("成功:" + successList.Count + ",失败" + falseList.Count + "个", "下载完成");
-                }
-
+            int a = ((FileId)param).fileId;
+            int b = ((FileId)param).partId;
+            m3u8FileList[a].DownloadState[b] = (int)status;
+            switch (status)
+            {
+                case Status.NoStart: break;
+                case Status.Paused: break;
+                case Status.Running: m3u8FileList[a].DownloadState[b] = progress; break;
+                case Status.Failed: Downloading--; failCount++; break;
+                case Status.Finished: Downloading--; break;
+                case Status.Exit: Console.WriteLine("process_Exited."+a+","+b); DownloadNextFile();break;
+            }
+            int row = dataGridView1.CurrentRow.Index;
+            if (a == row)
+            {
+                updateDownloadState(row, b);
             }
         }
 
+        private void btnListClear_Click(object sender, EventArgs e)
+        {
+            m3u8FileList.Clear();
+            dataGridView1.DataSource = new List<m3u8File>();
+            dataGridView1.DataSource = m3u8FileList;
+            //dataGridView1.Rows.Clear();
+        }
     }
 }

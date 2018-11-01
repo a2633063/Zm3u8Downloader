@@ -5,18 +5,44 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static Zm3u8Downloader.Aria2Download;
 
 namespace Zm3u8Downloader
 {
     public class m3u8File
     {
         public FileInfo file;
-        public string name;
-        public string path;
-        public int PartNo = -1;
-        public long totalTime = -1;
+        string _name;
+        string _path;
+        long _totalTime = -1;
         public string keyPath=null;
         public List<String> DownloadUrl = new List<string>();
+        public List<int> DownloadState = new List<int>();
+
+
+
+        public string name
+        {
+            get { return _name; }
+            set { _name = value; }
+        }
+
+        public string path
+        {
+            get { return _path; }
+            set { _path = value; }
+        }
+
+        public string totalTime
+        {
+            get { return string.Format("{0:D2}:{1:D2}:{2:D2}", _totalTime / 3600, _totalTime / 60 % 60, _totalTime % 60); }
+        }
+
+        public int partCount
+        {
+            get { return DownloadUrl.Count; }
+            
+        }
 
         public m3u8File(String str)
         {
@@ -61,19 +87,30 @@ namespace Zm3u8Downloader
                 Match m1 = regPart.Match(nextLine);
                 if (m1.Success)
                 {
-                    if (PartNo < 0) PartNo = 0;
-                    PartNo++;
-                    if (totalTime < 0) totalTime = 0;
-                    totalTime+= Convert.ToInt32(m1.Result("$1"));
+
+                    if (_totalTime < 0) _totalTime = 0;
+                    _totalTime+= Convert.ToInt32(m1.Result("$1"));
                     urlFlag = true;
                 }else if (urlFlag)
                 {
                     urlFlag = false;
                     DownloadUrl.Add(nextLine);
+                    
                     //Console.WriteLine(DownloadUrl.Count+","+nextLine);
                 }
+                DownloadStateClear();
             }
             sr.Close();
         }
+
+        public void DownloadStateClear()
+        {
+            DownloadState.Clear();
+            for(int i=0;i<DownloadUrl.Count;i++)
+            {
+                DownloadState.Add((int)Status.NoStart);
+            }
+        }
+
     }
 }
